@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script crossorigin="anonymous"
+            integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ=="
+            referrerpolicy="no-referrer"
+            src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <!-- CSS only -->
+    <link crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+          integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" rel="stylesheet">
+    <!-- JavaScript Bundle with Popper -->
+    <script crossorigin="anonymous"
+            integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
+            src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script crossorigin="anonymous"
+            integrity="sha512-Tn2m0TIpgVyTzzvmxLNuqbSJH3JP8jm+Cy3hvHrW7ndTDcJ1w5mBiksqDBb8GpE2ksktFvDB/ykZ0mDpsZj20w=="
+            referrerpolicy="no-referrer"
+            src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js"></script>
+    <script>
+        function getBasket() {
+            let basket = window.sessionStorage.getItem("basket");
+            if (basket == null) {
+                clearBasket();
+                basket = window.sessionStorage.getItem("basket");
+            }
+            //console.log(basket) ;
+            basket = JSON.parse(basket);
+            return basket;
+        }
+
+        function saveBasket(basket) {
+            window.sessionStorage.setItem("basket", JSON.stringify(basket));
+            displayBasket();
+        }
+
+        function addToBasket(id, title, qtty, amountPerItem, url = null) {
+            if (url === null) {
+                url = window.location.href;
+            }
+            let basket = getBasket();
+            let item = basket.content[id];
+            if (item == null) {
+                item = {
+                    "id": id,
+                    "title": title,
+                    "qtty": qtty,
+                    "amountPerItem": amountPerItem,
+                    "amount": qtty * amountPerItem,
+                    "url": url
+                };
+            } else {
+                amountPerItem = item.amountPerItem;
+                if (item.qtty + qtty > 0) {
+                    item.qtty += qtty;
+                    item.amount = item.qtty * item.amountPerItem;
+                } else {
+                    qtty = -item.qtty;
+                    item.qtty = 0;
+                }
+            }
+            if (item.qtty > 0) {
+                basket.content[id] = item;
+            } else {
+                delete basket.content[id]
+            }
+            basket.totalAmount += qtty * amountPerItem;
+            basket.totalQuantity += qtty;
+            saveBasket(basket);
+        }
+
+        function displayBasket() {
+            $("#short-basket-target").html(getHtmlShortBasket())
+            $("#basket-target").html(getHtmlBasket())
+        }
+
+        function clearBasket() {
+            saveBasket({"totalAmount": 0, "totalQuantity": 0, "content": {}});
+        }
+
+        function getBasketLink() {
+            return btoa(JSON.stringify(getBasket()));
+        }
+
+        function getHtmlShortBasket() {
+            let basket = getBasket();
+
+            return `
+            <button type="button" onclick="showMyBasket()" class="btn btn-primary position-relative">
+                <i class="fa fa-shopping-basket"></i> ` + (basket.totalQuantity ? `
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    ` + basket.totalQuantity + `
+                    <span class="visually-hidden">Nombre d'articles</span>
+                </span>
+                <span class="position-absolute top-100 start-100 translate-middle badge rounded-pill bg-danger">
+                    ` + basket.totalAmount + ` €
+                    <span class="visually-hidden">Montant</span>
+                </span>` : '') + '</button>';
+
+            //return '<div class="short-basket"><i class="fa fa-shopping-basket"></i><div class="basket-content">'+basket.totalQuantity+'</div>' + '<div class="basket-amount">' + basket.totalAmount + ' €</div>';
+        }
+
+        function getHtmlBasket() {
+            const Item = ({id, title, qtty, amountPerItem, amount, url}) => `
+                  <div id="item-${id}" class="row basket-item">
+                     <div class="col-4 item-title"><a href="${url}">${title}</a></div>
+                     <div class="col-2 item-amountPerItem text-end">${amountPerItem} € <i class="fa fa-times"></i></div>
+                     <div class="col-2 item-qtty text-end">${qtty} <i class="fa fa-equals"></i></div>
+                     <div class="col-2 item-amount text-end">${amount} €</div>
+                     <div class="col-2 item-qtty-upd">
+                         <div class="btn-group">
+                             <div class="btn btn-sm btn-primary item-dec" onclick="addToBasket('${id}',null,-1,0)">-</div>
+                             <div class="btn btn-sm btn-primary item-inc" onclick="addToBasket('${id}',null,1,0)">+</div>
+                             <div class="btn btn-sm btn-warning item-rem" onclick="addToBasket('${id}',null,-9999,0)"><i class="fas fa-trash"></i></div>
+                         </div>
+                     </div>
+                  </div>
+                `;
+            let basket = getBasket();
+            let content = '';
+            $.each(basket.content, function (id, item) {
+                content += Item(item);
+            })
+
+            //let content = basket.content.map(Item).join('');
+            return '<div class="basket"><div class="basket-content">' + content + '</div>' + '<div class="row basket-amount "><div class="col-6 text-end">Montant total</div><div class="col-4 text-end">' + basket.totalAmount + ' €</div><div class="col-2"><button class="btn btn-sm btn-danger" onclick="clearBasket()"><i class="fa fa-trash"></i></button></div></div>';
+        }
+
+        function showMyBasket() {
+            let myModal = new bootstrap.Modal(document.getElementById('myBasket'), {});
+            myModal.show();
+        }
+
+        function sendBasket() {
+            let content = {basket: getBasket(), email: $('#basket-email').val(), comment: $('#basket-comment').val()}
+            console.log(btoa(JSON.stringify(content)));
+            // todo Ajax vers serveur
+        }
+    </script>
+    <style>
+        .basket-amount {
+            font-size: 2em;
+        }
+    </style>
+</head>
+<body onload="displayBasket()">
+
+<div class="modal" id="myBasket" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mon panier</h5>
+                <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+            </div>
+            <div class="modal-body">
+                <div class="container" id="basket-target" style="font-size:0.75em"></div>
+            </div>
+            <div class="modal-footer">
+                <textarea class="form-control" id="basket-comment"
+                          placeholder="Ajouter un message si besoin ..."></textarea>
+            </div>
+            <div class="modal-footer">
+                Merci d'indiquer votre email et éventuellement votre téléphone
+                <div class="row">
+                    <div class="input-group mb-3 col">
+                        <span class="input-group-text" id="basic-addon-email">@</span>
+                        <input aria-describedby="basic-addon-email" aria-label="Username" class="form-control" id="basket-email"
+                               placeholder="mon@email.com" type="email">
+                    </div>
+                    <div class="input-group mb-3 col">
+                        <span class="input-group-text" id="basic-addon-phone"><i class="fa fa-phone"></i></span>
+                        <input aria-describedby="basic-addon-phone" aria-label="Phone" class="form-control" id="basket-phone"
+                               placeholder="0601020304" type="phone">
+                    </div>
+                </div>
+                et
+                <button class="btn btn-primary" onclick="sendBasket()" type="button">Valider</button>
+            </div>
+            <div class="modal-footer">
+                Après avoir validé le panier, vous recevrez un email avec un lien à cliquer pour le confirmer.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--div class="card" style="width:600px">
+    <div class="card-header card-primary">
+        Mon panier
+    </div>
+    <div class="card-body">
+        <div class="container" id="basket-target" style="font-size:0.75em"></div>
+    </div>
+</div-->
+<hr/>
+<center>
+    <div id="short-basket-target" style="font-size:0.75em"></div>
+</center>
+<hr/>
+
+<div class="card" style="width:600px">
+    <div class="card-header card-primary">
+        Item 1
+    </div>
+    <div class="card-body" onclick="addToBasket('1','item-1',1,10)">
+        <i class="fas fa-shopping-basket"></i>
+    </div>
+</div>
+<div class="card" style="width:600px">
+    <div class="card-header card-primary">
+        Item 2
+    </div>
+    <div class="card-body" onclick="addToBasket('2','item-3',1,20,window.location.href)">
+        <i class="fas fa-shopping-basket"></i>
+    </div>
+</div>
+<div class="card m-1" style="width:600px">
+    <div class="card-header card-primary">
+        Item 3
+    </div>
+    <div class="card-body" onclick="addToBasket('3','item-3',1,30)">
+        <i class="fas fa-shopping-basket"></i>
+    </div>
+</div>
+
+</body>
+</html>
